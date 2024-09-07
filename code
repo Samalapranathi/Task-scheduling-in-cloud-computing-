@@ -1,0 +1,200 @@
+import numpy as np
+import pandas as pd
+import gym
+from gym import spaces
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from collections import deque
+import random
+import boto3
+import os
+import tensorflow as tf
+
+# Silence TensorFlow messages
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.get_logger().setLevel('ERROR')
+
+# Number of tasks and VMs
+num_tasks = 10
+num_vms = 5
+
+# Generate task attributes
+tasks = {
+    'task_id': np.arange(num_tasks),
+    'execution_time': np.random.uniform(10, 100, num_tasks),
+    'dependencies': [np.random.choice(np.arange(num_tasks), np.random.randint(0, 5), replace=False).tolist() for _ in range(num_tasks)]
+}
+
+tasks_df = pd.DataFrame(tasks)
+
+# Generate VM attributes
+vms = {
+    'vm_id': np.arange(num_vms),
+    'capacity': np.random.uniform(1, 10, num_vms),
+    'energy_consumption': np.random.uniform(0.1, 2, num_vms)
+}
+
+vms_df = pd.DataFrame(vms)
+
+# Save datasets
+tasks_df.to_csv('tasks.csv', index=False)
+vms_df.to_csv('vms.csv', index=False)
+
+class CloudEnv(gym.Env):
+    def _init_(self, tasks, vms):
+        super(CloudEnv, self)._init_()
+        self.tasks = tasks
+        self.vms = vms
+        self.action_space = spaces.Discrete(len(vms) * len(tasks))
+        self.observation_space = spaces.Box(low=0, high=1, shape=(len(tasks), len(vms)), dtype=np.float32)
+        self.state = None
+        self.total_execution_time = 0
+        self.total_energy_consumption = 0
+        self.reset()
+        
+    def reset(self):
+        self.state = np.zeros((len(self.tasks), len(self.vms)))
+        self.total_execution_time = 0
+        self.total_energy_consumption = 0
+        return self.state.flatten()
+    
+    def step(self, action):
+        task_id = action // len(self.vms)
+        vm_id = action % len(self.vms)
+        task = self.tasks.iloc[task_id]
+        vm = self.vms.iloc[vm_id]
+        
+        execution_time = task['execution_time'] / vm['capacity']
+        energy_consumption = vm['energy_consumption']
+        
+        reward = - (execution_time + energy_consumption)
+        
+        self.total_execution_time += execution_time
+        self.total_energy_consumption += energy_consumption
+        
+        self.state[task_id][vm_id] = 1
+        
+        done = np.all(self.state.sum(axis=1) == 1)
+        
+        return self.state.flatten(), reward, done, {}
+
+    def get_metrics(self):
+        return self.total_execution_time, self.total_energy_consumption
+
+
+class DQNAgent:
+    def _init_(self, state_size, action_size):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.memory = deque(maxlen=2000)
+        self.gamma = 0.95
+        self.epsilon = 1.0
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.995
+        self.learning_rate = 0.001
+        self.model = self._build_model()
+
+    def _build_model(self):
+        model = Sequential()
+        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(24, activation='relu'))
+        model.add(Dense(self.action_size, activation='linear'))
+        model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate))
+        return model
+
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+
+    def act(self, state):
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
+        act_values = self.model.predict(state)
+        return np.argmax(act_values[0])
+
+    def replay(self, batch_size):
+        minibatch = random.sample(self.memory, batch_size)
+        for state, action, reward, next_state, done in minibatch:
+            target = reward
+            if not done:
+                target = (reward + self.gamma * np.amax(self.model.predict(next_state)[0]))
+            target_f = self.model.predict(state)
+            target_f[0][action] = target
+            self.model.fit(state, target_f, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+
+# Load datasets
+tasks = pd.read_csv('tasks.csv')
+vms = pd.read_csv('vms.csv')
+
+# Initialize environment and agent
+env = CloudEnv(tasks, vms)
+state_size = env.observation_space.shape[0] * env.observation_space.shape[1]
+action_size = env.action_space.n
+agent = DQNAgent(state_size, action_size)
+
+# Training parameters
+episodes = 10
+batch_size = 2
+
+for e in range(episodes):
+    state = env.reset()
+    state = np.reshape(state, [1, state_size])
+    for time in range(2):
+        action = agent.act(state)
+        next_state, reward, done, _ = env.step(action)
+        reward = reward if not done else -10
+        next_state = np.reshape(next_state, [1, state_size])
+        agent.remember(state, action, reward, next_state, done)
+        state = next_state
+        if done:
+            total_execution_time, total_energy_consumption = env.get_metrics()
+            print(f"episode: {e}/{episodes}, score: {time}, e: {agent.epsilon:.2f}")
+            print(f"Total Execution Time (Makespan): {total_execution_time}")
+            print(f"Total Energy Consumption: {total_energy_consumption}")
+            break
+    if len(agent.memory) > batch_size:
+        agent.replay(batch_size)
+
+
+def get_existing_instances(ec2):
+    instances = ec2.instances.filter(Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+    return [instance.id for instance in instances][:num_vms]  # Limit to num_vms instances
+
+def schedule_task_aws(task, instance_id, env, instance_vm_map):
+    task_id = task['task_id']
+    vm_id = instance_vm_map[instance_id]
+    execution_time = task['execution_time'] / vms.loc[vm_id, 'capacity']
+    energy_consumption = vms.loc[vm_id, 'energy_consumption']
+    
+    env.total_execution_time += execution_time
+    env.total_energy_consumption += energy_consumption
+
+    print(f'Scheduled task {task_id} on VM {instance_id}')
+    print(f"Current Total Execution Time (Makespan): {env.total_execution_time}")
+    print(f"Current Total Energy Consumption: {env.total_energy_consumption}")
+
+
+ec2 = boto3.resource('ec2', region_name='us-west-2')
+existing_instances = get_existing_instances(ec2)
+
+if len(existing_instances) < num_vms:
+    print("Not enough available instances to match the number of VMs.")
+else:
+    # Create a direct mapping from instance IDs to VM IDs
+    instance_vm_map = {instance_id: vm_id for instance_id, vm_id in zip(existing_instances, vms['vm_id'])}
+    
+    for i, row in tasks.iterrows():
+        if not existing_instances:
+            print("No available instances to schedule tasks.")
+            break
+        action = agent.act(env.state.flatten().reshape([1, state_size]))
+        task_id = action // len(vms)
+        vm_id = action % len(vms)
+        instance_id = existing_instances[vm_id]  # Use the corresponding instance for the VM
+        schedule_task_aws(tasks.iloc[task_id], instance_id, env, instance_vm_map)
+
+    print(f"Final Total Execution Time (Makespan): {env.total_execution_time}")
+    print(f"Final Total Energy Consumption: {env.total_energy_consumption}")
