@@ -1,0 +1,72 @@
+Output:
+
+PS C:\Users\yesas\OneDrive\Desktop\RES> python cloud.py
+1/1 [==============================] - 0s 76ms/step
+1/1 [==============================] - 0s 22ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 20ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 30ms/step
+1/1 [==============================] - 0s 20ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 18ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 18ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 18ms/step
+1/1 [==============================] - 0s 18ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 28ms/step
+1/1 [==============================] - 0s 23ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 24ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 25ms/step
+1/1 [==============================] - 0s 39ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 19ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 21ms/step
+1/1 [==============================] - 0s 22ms/step
+1/1 [==============================] - 0s 17ms/step
+1/1 [==============================] - 0s 18ms/step
+Scheduled task 4 on VM i-0493638a39c6bbaaa
+Current Total Execution Time (Makespan): 59.3402891251564
+Current Total Energy Consumption: 2.6126587336662115
+Scheduled task 3 on VM i-0575b880532eb3dc9
+Current Total Execution Time (Makespan): 73.92315927987909
+Current Total Energy Consumption: 3.4800937418900824
+Scheduled task 4 on VM i-0493638a39c6bbaaa
+Current Total Execution Time (Makespan): 83.36360191693781
+Current Total Energy Consumption: 4.324601858113544
+Scheduled task 9 on VM i-05a06f714b13255a0
+Current Total Execution Time (Makespan): 97.03904343895948
+Current Total Energy Consumption: 6.106926115532417
+Scheduled task 6 on VM i-0575b880532eb3dc9
+Current Total Execution Time (Makespan): 108.55824609584565
+Current Total Energy Consumption: 6.974361123756288
+Scheduled task 8 on VM i-05a06f714b13255a0
+Current Total Execution Time (Makespan): 114.02885910479702
+Current Total Energy Consumption: 8.756685381175162
+Scheduled task 3 on VM i-0493638a39c6bbaaa
+Current Total Execution Time (Makespan): 158.40646633969035
+Current Total Energy Consumption: 9.601193497398624
+Scheduled task 6 on VM i-0aeb7d92ca660fab0
+Current Total Execution Time (Makespan): 189.45010892386944
+Current Total Energy Consumption: 11.102129467233507
+Scheduled task 7 on VM i-0575b880532eb3dc9
+Current Total Execution Time (Makespan): 204.1425638445765
+Current Total Energy Consumption: 11.969564475457378
+Scheduled task 6 on VM i-02af22f17278903a3
+Current Total Execution Time (Makespan): 230.28036208472048
+Current Total Energy Consumption: 12.236779123065245
+Final Total Execution Time (Makespan): 230.28036208472048
+Final Total Energy Consumption: 12.236779123065245
